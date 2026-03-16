@@ -114,16 +114,24 @@ const buildMarkdownPrompt = (files: FileNode[], config: PromptConfig): string =>
     sections.push(userPrompt)
   }
 
-  if (config.includeFileTree && files.length > 0) {
-    sections.push(`## Selected file tree\n\n\`\`\`text\n${renderFileTree(files)}\n\`\`\``)
+  if (files.length > 0) {
+    sections.push(
+      'I have a project that includes the following files. '
+      + 'Each file\'s name and full content are provided below. '
+      + 'Use these file contents to answer my request.',
+    )
   }
 
-  if (files.length > 0) {
-    sections.push('## Source files')
+  if (config.includeFileTree && files.length > 0) {
+    sections.push(`## Project file tree\n\n\`\`\`text\n${renderFileTree(files)}\n\`\`\``)
   }
 
   files.forEach((file) => {
-    sections.push(`### ${getFileLabel(file, config)}\n\n${formatFileBody(file, config)}`)
+    const label = getFileLabel(file, config)
+    const body = formatFileBody(file, config)
+    sections.push(
+      `## File: \`${label}\`\n\nBelow is the full content of \`${label}\`:\n\n${body}`,
+    )
   })
 
   return sections.join('\n\n')
@@ -137,23 +145,43 @@ const buildPlainPrompt = (files: FileNode[], config: PromptConfig): string => {
     sections.push(userPrompt)
   }
 
+  if (files.length > 0) {
+    sections.push(
+      'I have a project that includes the following files. '
+      + 'Each file\'s name and full content are provided between BEGIN/END markers. '
+      + 'Use these file contents to answer my request.',
+    )
+  }
+
   if (config.includeFileTree && files.length > 0) {
-    sections.push(`SELECTED FILE TREE\n${renderFileTree(files)}`)
+    sections.push(`PROJECT FILE TREE:\n${renderFileTree(files)}`)
   }
 
   files.forEach((file) => {
-    sections.push(`FILE: ${getFileLabel(file, config)}\n${formatFileBody(file, config)}`)
+    const label = getFileLabel(file, config)
+    const body = formatFileBody(file, config)
+    sections.push(
+      `===== BEGIN FILE: ${label} =====\n${body}\n===== END FILE: ${label} =====`,
+    )
   })
 
   return sections.join('\n\n')
 }
 
 const buildXmlPrompt = (files: FileNode[], config: PromptConfig): string => {
-  const lines = ['<codeLoomPrompt>']
+  const lines = ['<prompt>']
   const userPrompt = config.userPrompt.trim()
 
   if (userPrompt) {
     lines.push(`  <instruction><![CDATA[${toCData(userPrompt)}]]></instruction>`)
+  }
+
+  if (files.length > 0) {
+    lines.push(
+      '  <context>The following files are from a project. '
+      + 'Each file element contains the file path and its full source content. '
+      + 'Use these to answer the instruction above.</context>',
+    )
   }
 
   if (config.includeFileTree && files.length > 0) {
@@ -164,13 +192,14 @@ const buildXmlPrompt = (files: FileNode[], config: PromptConfig): string => {
 
   files.forEach((file) => {
     const label = escapeXml(getFileLabel(file, config))
-    lines.push(`    <file label="${label}">`)
-    lines.push(`      <content><![CDATA[${toCData(formatFileBody(file, config))}]]></content>`)
+    const content = file.content ?? ''
+    lines.push(`    <file path="${label}">`)
+    lines.push(`      <![CDATA[${toCData(content)}]]>`)
     lines.push('    </file>')
   })
 
   lines.push('  </files>')
-  lines.push('</codeLoomPrompt>')
+  lines.push('</prompt>')
 
   return lines.join('\n')
 }

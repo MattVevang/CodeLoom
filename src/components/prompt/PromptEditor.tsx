@@ -82,7 +82,9 @@ export const PromptEditor = () => {
                 className="input-field text-sm"
               >
                 {outputFormats.map((format) => (
-                  <option key={format} value={format}>{format.toUpperCase()}</option>
+                  <option key={format} value={format}>
+                    {format === 'xml' ? 'XML (recommended for local LLMs)' : format.toUpperCase()}
+                  </option>
                 ))}
               </select>
             </label>
