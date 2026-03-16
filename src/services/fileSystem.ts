@@ -8,6 +8,8 @@ interface IterableDirectoryHandle extends FileSystemDirectoryHandle {
   values: () => AsyncIterable<FileSystemHandle>
 }
 
+export type ShouldSkipEntry = (name: string, path: string, kind: 'file' | 'directory') => boolean
+
 const getExtension = (fileName: string): string => {
   const dotIndex = fileName.lastIndexOf('.')
   return dotIndex >= 0 ? fileName.slice(dotIndex + 1).toLowerCase() : ''
@@ -37,15 +39,21 @@ export const openDirectory = async (): Promise<FileSystemDirectoryHandle> => {
 export const readDirectoryRecursive = async (
   dirHandle: FileSystemDirectoryHandle,
   currentPath = '',
+  shouldSkip?: ShouldSkipEntry,
 ): Promise<FileNode> => {
   const children: FileNode[] = []
 
   for await (const handle of (dirHandle as IterableDirectoryHandle).values()) {
     const name = handle.name
     const path = currentPath ? `${currentPath}/${name}` : name
+    const kind = handle.kind === 'directory' ? 'directory' : 'file'
+
+    if (shouldSkip?.(name, path, kind)) {
+      continue
+    }
 
     if (handle.kind === 'directory') {
-      children.push(await readDirectoryRecursive(handle as FileSystemDirectoryHandle, path))
+      children.push(await readDirectoryRecursive(handle as FileSystemDirectoryHandle, path, shouldSkip))
       continue
     }
 

@@ -1,10 +1,12 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { isBinaryFile } from '@/services/binaryDetector'
 import { openDirectory, readDirectoryRecursive, readFileContent, supportsFileSystemAccess } from '@/services/fileSystem'
+import type { ShouldSkipEntry } from '@/services/fileSystem'
 import { isIgnored, parseGitignore } from '@/services/gitignoreParser'
+import type { GitignoreRule } from '@/services/gitignoreParser'
 import { useFileStore } from '@/stores/fileStore'
 import { useSettingsStore } from '@/stores/settingsStore'
-import type { FileNode } from '@/types'
+import type { FileFilterDefaults, FileNode } from '@/types'
 
 const matchesPattern = (value: string, pattern: string): boolean => {
   const normalizedPattern = pattern.trim().replace(/\\/g, '/')
@@ -20,79 +22,65 @@ const matchesPattern = (value: string, pattern: string): boolean => {
   return new RegExp(`^${escaped}$`, 'i').test(value) || new RegExp(escaped, 'i').test(value)
 }
 
-const shouldSkipNode = (
-  node: FileNode,
-  respectGitignore: boolean,
-  skipHiddenFiles: boolean,
-  excludePatterns: string[],
-  gitignoreRules: ReturnType<typeof parseGitignore>,
-): boolean => {
-  if (node.path && skipHiddenFiles && node.name.startsWith('.')) {
+const buildSkipCallback = (
+  filters: FileFilterDefaults,
+  gitignoreRules: GitignoreRule[],
+): ShouldSkipEntry => (name, path, kind) => {
+  if (filters.skipHiddenFiles && name.startsWith('.')) {
     return true
   }
 
-  if (node.path && respectGitignore && isIgnored(node.path, gitignoreRules)) {
+  if (filters.respectGitignore && isIgnored(path, gitignoreRules)) {
     return true
   }
 
-  return excludePatterns.some((pattern) => matchesPattern(node.path, pattern))
+  if (kind === 'directory' && filters.excludePatterns.some((p) => matchesPattern(path, p))) {
+    return true
+  }
+
+  return false
 }
 
-const hydrateNode = async (
+const hydrateFileContent = async (
   node: FileNode,
-  filters: ReturnType<typeof useSettingsStore.getState>['defaultFilters'],
-  gitignoreRules: ReturnType<typeof parseGitignore>,
+  filters: FileFilterDefaults,
 ): Promise<FileNode | null> => {
-  if (
-    shouldSkipNode(
-      node,
-      filters.respectGitignore,
-      filters.skipHiddenFiles,
-      filters.excludePatterns,
-      gitignoreRules,
-    )
-  ) {
-    return null
-  }
+  if (node.type === 'directory') {
+    const children = (
+      await Promise.all((node.children ?? []).map((child) => hydrateFileContent(child, filters)))
+    ).filter((child): child is FileNode => child !== null)
 
-  if (node.type === 'file') {
-    if (typeof node.size === 'number' && node.size > filters.maxFileSizeKB * 1024) {
+    if (node.path && children.length === 0) {
       return null
     }
 
-    if (!node.handle || node.handle.kind !== 'file') {
-      return node
-    }
-
-    try {
-      const content = await readFileContent(node.handle)
-
-      if (filters.skipBinaryFiles && isBinaryFile(content, node.name)) {
-        return null
-      }
-
-      return {
-        ...node,
-        content,
-      }
-    } catch {
-      return null
-    }
+    return { ...node, children, isExpanded: node.path === '', isSelected: false }
   }
 
-  const children = (
-    await Promise.all((node.children ?? []).map((child) => hydrateNode(child, filters, gitignoreRules)))
-  ).filter((child): child is FileNode => child !== null)
-
-  if (node.path && children.length === 0) {
+  // File-level filters
+  if (filters.excludePatterns.some((p) => matchesPattern(node.path, p))) {
     return null
   }
 
-  return {
-    ...node,
-    children,
-    isExpanded: node.path === '',
-    isSelected: false,
+  if (typeof node.size === 'number' && node.size > filters.maxFileSizeKB * 1024) {
+    return null
+  }
+
+  if (!node.handle || node.handle.kind !== 'file') {
+    return node
+  }
+
+  try {
+    const content = await readFileContent(node.handle)
+
+    if (filters.skipBinaryFiles && isBinaryFile(content, node.name)) {
+      return null
+    }
+
+    return { ...node, content }
+  } catch {
+    // Keep the file in the tree even if content can't be read
+    return node
   }
 }
 
@@ -105,14 +93,37 @@ const readRootGitignore = async (dirHandle: FileSystemDirectoryHandle): Promise<
   }
 }
 
+const scanAndHydrate = async (
+  directoryHandle: FileSystemDirectoryHandle,
+  filters: FileFilterDefaults,
+): Promise<FileNode> => {
+  // Read .gitignore FIRST so we can skip ignored dirs during scan
+  const gitignoreContent = filters.respectGitignore
+    ? await readRootGitignore(directoryHandle)
+    : ''
+  const gitignoreRules = gitignoreContent ? parseGitignore(gitignoreContent) : []
+
+  // Recursive scan with early skip for ignored/hidden directories
+  const skipCallback = buildSkipCallback(filters, gitignoreRules)
+  const rawTree = await readDirectoryRecursive(directoryHandle, '', skipCallback)
+
+  // Hydrate: read file contents, apply file-level filters (binary, size, patterns)
+  const hydrated = await hydrateFileContent(rawTree, filters)
+
+  return hydrated ?? { ...rawTree, children: [] }
+}
+
 export const useFileSystem = () => {
   const filters = useSettingsStore((state) => state.defaultFilters)
   const setRootNode = useFileStore((state) => state.setRootNode)
   const setRootDirName = useFileStore((state) => state.setRootDirName)
+  const setDirectoryHandle = useFileStore((state) => state.setDirectoryHandle)
   const setLoading = useFileStore((state) => state.setLoading)
   const setError = useFileStore((state) => state.setError)
   const isLoading = useFileStore((state) => state.isLoading)
   const error = useFileStore((state) => state.error)
+  const filtersRef = useRef(filters)
+  filtersRef.current = filters
 
   const openFolder = useCallback(async () => {
     if (!supportsFileSystemAccess()) {
@@ -124,21 +135,12 @@ export const useFileSystem = () => {
     setError(null)
 
     try {
-      const directoryHandle = await openDirectory()
-      const rootNode = await readDirectoryRecursive(directoryHandle)
-      const gitignoreContent = filters.respectGitignore
-        ? await readRootGitignore(directoryHandle)
-        : ''
-      const gitignoreRules = gitignoreContent ? parseGitignore(gitignoreContent) : []
-      const hydratedRoot = await hydrateNode(rootNode, filters, gitignoreRules)
+      const dirHandle = await openDirectory()
+      const hydratedRoot = await scanAndHydrate(dirHandle, filtersRef.current)
 
-      setRootDirName(directoryHandle.name)
-      setRootNode(
-        hydratedRoot ?? {
-          ...rootNode,
-          children: [],
-        },
-      )
+      setDirectoryHandle(dirHandle)
+      setRootDirName(dirHandle.name)
+      setRootNode(hydratedRoot)
     } catch (caughtError) {
       if (caughtError instanceof DOMException && caughtError.name === 'AbortError') {
         setLoading(false)
@@ -151,7 +153,35 @@ export const useFileSystem = () => {
     } finally {
       setLoading(false)
     }
-  }, [filters, setError, setLoading, setRootDirName, setRootNode])
+  }, [setDirectoryHandle, setError, setLoading, setRootDirName, setRootNode])
+
+  // Re-scan when filter settings change (only if a folder is already open)
+  useEffect(() => {
+    const dirHandle = useFileStore.getState().directoryHandle
+    if (!dirHandle) return
+
+    let cancelled = false
+
+    const refresh = async () => {
+      setLoading(true)
+      try {
+        const hydratedRoot = await scanAndHydrate(dirHandle, filters)
+        if (!cancelled) {
+          setRootNode(hydratedRoot)
+        }
+      } catch {
+        // Refresh is best-effort; keep existing tree
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    void refresh()
+
+    return () => { cancelled = true }
+  }, [filters, setLoading, setRootNode])
 
   return {
     openFolder,

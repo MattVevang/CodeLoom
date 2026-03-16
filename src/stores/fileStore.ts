@@ -4,10 +4,12 @@ import type { FileNode } from '@/types'
 interface FileStore {
   rootNode: FileNode | null
   rootDirName: string
+  directoryHandle: FileSystemDirectoryHandle | null
   isLoading: boolean
   error: string | null
   setRootNode: (node: FileNode | null) => void
   setRootDirName: (name: string) => void
+  setDirectoryHandle: (handle: FileSystemDirectoryHandle | null) => void
   toggleSelected: (path: string) => void
   toggleExpanded: (path: string) => void
   selectAll: () => void
@@ -23,6 +25,7 @@ interface FileStore {
 const initialState = {
   rootNode: null as FileNode | null,
   rootDirName: '',
+  directoryHandle: null as FileSystemDirectoryHandle | null,
   isLoading: false,
   error: null as string | null,
 }
@@ -130,6 +133,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   ...initialState,
   setRootNode: (node) => set({ rootNode: node }),
   setRootDirName: (name) => set({ rootDirName: name }),
+  setDirectoryHandle: (handle) => set({ directoryHandle: handle }),
   toggleSelected: (path) =>
     set((state) => ({
       rootNode: state.rootNode ? toggleSelectionInTree(state.rootNode, path) : null,
