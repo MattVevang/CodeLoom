@@ -1,5 +1,5 @@
-import { Copy, Download, FileOutput, SendHorizontal, ShieldCheck } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ArrowLeft, Bot, Copy, Download, FileOutput, SendHorizontal, ShieldCheck } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useClipboard } from '@/hooks/useClipboard'
 import { formatBytes } from '@/lib/utils'
@@ -7,14 +7,19 @@ import { sendToLLM } from '@/services/llmBridge'
 import { usePromptStore } from '@/stores/promptStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { TokenCounter } from '@/components/output/TokenCounter'
+import type { LLMResponse } from '@/types'
 
 export const OutputPanel = () => {
   const assembledPrompt = usePromptStore((state) => state.assembledPrompt)
   const llmEndpoints = useSettingsStore((state) => state.llmEndpoints)
   const activeEndpointId = useSettingsStore((state) => state.activeLLMEndpoint)
   const { copy, copied } = useClipboard()
+  const { copy: copyResponse, copied: copiedResponse } = useClipboard()
   const [isSending, setIsSending] = useState(false)
-  const [sendStatus, setSendStatus] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [llmResponse, setLlmResponse] = useState<LLMResponse | null>(null)
+  const [showResponse, setShowResponse] = useState(false)
+  const responseRef = useRef<HTMLDivElement>(null)
 
   const activeEndpoint = useMemo(
     () => llmEndpoints.find((endpoint) => endpoint.id === activeEndpointId) ?? llmEndpoints[0] ?? null,
@@ -41,17 +46,18 @@ export const OutputPanel = () => {
     }
 
     setIsSending(true)
-    setSendStatus(null)
+    setSendError(null)
 
     try {
       const response = await sendToLLM(activeEndpoint, assembledPrompt.content)
-      setSendStatus(
-        response.content
-          ? `Sent to ${activeEndpoint.name}. Response received successfully.`
-          : `Sent to ${activeEndpoint.name}. The endpoint returned an empty response.`,
-      )
+      if (response.content) {
+        setLlmResponse(response)
+        setShowResponse(true)
+      } else {
+        setSendError(`${activeEndpoint.name} returned an empty response.`)
+      }
     } catch (error) {
-      setSendStatus(error instanceof Error ? error.message : 'Unable to reach the selected LLM endpoint.')
+      setSendError(error instanceof Error ? error.message : 'Unable to reach the selected LLM endpoint.')
     } finally {
       setIsSending(false)
     }
@@ -128,17 +134,57 @@ export const OutputPanel = () => {
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 p-5">
-        {sendStatus ? (
-          <div className="rounded-lg border border-zinc-200/80 bg-zinc-50 px-3 py-2 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950/70 dark:text-zinc-300">
-            {sendStatus}
+        {sendError ? (
+          <div className="rounded-lg border border-red-200/80 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            {sendError}
           </div>
         ) : null}
 
-        <div className="panel-muted subtle-scrollbar min-h-0 flex-1 overflow-auto p-4">
-          <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-800 dark:text-zinc-100">
-            <code>{assembledPrompt.content}</code>
-          </pre>
-        </div>
+        {showResponse && llmResponse ? (
+          <div ref={responseRef} className="flex min-h-0 flex-1 flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                <Bot className="size-4 text-indigo-500" />
+                <span>LLM Response</span>
+                {llmResponse.usage ? (
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                    {llmResponse.usage.promptTokens != null ? `${llmResponse.usage.promptTokens.toLocaleString()} prompt` : ''}
+                    {llmResponse.usage.completionTokens != null ? ` · ${llmResponse.usage.completionTokens.toLocaleString()} completion` : ''}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Copy className="size-3.5" />}
+                  onClick={() => { void copyResponse(llmResponse.content) }}
+                >
+                  {copiedResponse ? 'Copied' : 'Copy'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<ArrowLeft className="size-3.5" />}
+                  onClick={() => setShowResponse(false)}
+                >
+                  Show prompt
+                </Button>
+              </div>
+            </div>
+            <div className="panel-muted subtle-scrollbar min-h-0 flex-1 overflow-auto p-4">
+              <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-800 dark:text-zinc-100">
+                <code>{llmResponse.content}</code>
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <div className="panel-muted subtle-scrollbar min-h-0 flex-1 overflow-auto p-4">
+            <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-6 text-zinc-800 dark:text-zinc-100">
+              <code>{assembledPrompt.content}</code>
+            </pre>
+          </div>
+        )}
       </div>
     </section>
   )
