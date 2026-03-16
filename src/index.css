@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --surface-canvas: 244 244 245;
+  --surface-panel: 255 255 255;
+  --surface-muted: 250 250 250;
+  --border-subtle: 228 228 231;
+  --text-strong: 24 24 27;
+  --text-muted: 82 82 91;
+  --primary: 79 70 229;
+  --accent: 249 115 22;
+}
+
+html.dark {
+  color-scheme: dark;
+  --surface-canvas: 9 9 11;
+  --surface-panel: 24 24 27;
+  --surface-muted: 15 15 17;
+  --border-subtle: 39 39 42;
+  --text-strong: 244 244 245;
+  --text-muted: 161 161 170;
+  --primary: 99 102 241;
+  --accent: 251 146 60;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    @apply h-full scroll-smooth;
+  }
+
+  body {
+    @apply min-h-full bg-zinc-50 text-zinc-900 antialiased transition-colors duration-300 dark:bg-zinc-950 dark:text-zinc-100;
+    background-color: rgb(var(--surface-canvas));
+    color: rgb(var(--text-strong));
+    background-image:
+      radial-gradient(circle at top, rgb(var(--primary) / 0.08), transparent 32%),
+      radial-gradient(circle at bottom right, rgb(var(--accent) / 0.08), transparent 26%);
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    @apply transition-colors duration-200;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    @apply text-zinc-400 dark:text-zinc-500;
+  }
+
+  ::selection {
+    background: rgb(var(--primary) / 0.22);
+    color: inherit;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-offset-zinc-950;
+  }
+}
+
+@layer utilities {
+  .panel-surface {
+    @apply rounded-lg border border-zinc-200/80 bg-white/90 shadow-[0_16px_45px_-28px_rgba(15,23,42,0.45)] backdrop-blur transition-colors dark:border-zinc-800/80 dark:bg-zinc-900/85 dark:shadow-[0_24px_55px_-34px_rgba(0,0,0,0.7)];
+  }
+
+  .panel-muted {
+    @apply rounded-lg border border-zinc-200/70 bg-zinc-50/90 transition-colors dark:border-zinc-800/80 dark:bg-zinc-950/70;
+  }
+
+  .input-field {
+    @apply w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100;
+  }
+
+  .subtle-scrollbar {
+    scrollbar-width: thin;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--primary) / 0.35) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background-color: rgb(113 113 122 / 0.35);
+}
+
+html.dark *::-webkit-scrollbar-thumb {
+  background-color: rgb(161 161 170 / 0.32);
+}

@@ -1,0 +1,203 @@
+import type { LLMEndpoint, LLMResponse } from '@/types'
+
+interface OllamaGenerateResponse {
+  response?: string
+  prompt_eval_count?: number
+  eval_count?: number
+}
+
+interface OpenAIChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string
+    }
+  }>
+  usage?: {
+    prompt_tokens?: number
+    completion_tokens?: number
+    total_tokens?: number
+  }
+}
+
+interface ModelListResponse {
+  data?: Array<{
+    id?: string
+  }>
+}
+
+interface OllamaTagsResponse {
+  models?: Array<{
+    name?: string
+  }>
+}
+
+const buildApiUrl = (baseUrl: string, apiPath: string): string => {
+  const normalizedBase = baseUrl.replace(/\/+$/, '')
+  const normalizedPath = apiPath.startsWith('/') ? apiPath : `/${apiPath}`
+
+  if (normalizedBase.endsWith('/v1') && normalizedPath.startsWith('/v1/')) {
+    return `${normalizedBase}${normalizedPath.slice(3)}`
+  }
+
+  if (normalizedBase.endsWith('/api') && normalizedPath.startsWith('/api/')) {
+    return `${normalizedBase}${normalizedPath.slice(4)}`
+  }
+
+  return `${normalizedBase}${normalizedPath}`
+}
+
+const buildHeaders = (endpoint: LLMEndpoint): HeadersInit => {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  }
+
+  if (endpoint.apiKey) {
+    headers.Authorization = `Bearer ${endpoint.apiKey}`
+  }
+
+  if (endpoint.apiType === 'anthropic' && endpoint.apiKey) {
+    headers['x-api-key'] = endpoint.apiKey
+    headers['anthropic-version'] = '2023-06-01'
+  }
+
+  return headers
+}
+
+const readJson = async <T>(response: Response): Promise<T> => {
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || `Request failed with status ${response.status}`)
+  }
+
+  return (await response.json()) as T
+}
+
+export const sendToLLM = async (endpoint: LLMEndpoint, prompt: string): Promise<LLMResponse> => {
+  if (endpoint.apiType === 'ollama') {
+    const response = await fetch(buildApiUrl(endpoint.url, '/api/generate'), {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        prompt,
+        stream: false,
+      }),
+    })
+
+    const data = await readJson<OllamaGenerateResponse>(response)
+
+    return {
+      content: data.response ?? '',
+      raw: data,
+      usage: {
+        promptTokens: data.prompt_eval_count,
+        completionTokens: data.eval_count,
+        totalTokens:
+          typeof data.prompt_eval_count === 'number' || typeof data.eval_count === 'number'
+            ? (data.prompt_eval_count ?? 0) + (data.eval_count ?? 0)
+            : undefined,
+      },
+    }
+  }
+
+  if (endpoint.apiType === 'anthropic') {
+    const response = await fetch(buildApiUrl(endpoint.url, '/v1/messages'), {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    })
+
+    const data = await readJson<{
+      content?: Array<{ text?: string }>
+      usage?: { input_tokens?: number; output_tokens?: number }
+    }>(response)
+
+    return {
+      content: data.content?.map((entry) => entry.text ?? '').join('') ?? '',
+      raw: data,
+      usage: {
+        promptTokens: data.usage?.input_tokens,
+        completionTokens: data.usage?.output_tokens,
+        totalTokens:
+          typeof data.usage?.input_tokens === 'number' || typeof data.usage?.output_tokens === 'number'
+            ? (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0)
+            : undefined,
+      },
+    }
+  }
+
+  if (endpoint.apiType === 'generic') {
+    const response = await fetch(endpoint.url, {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        prompt,
+      }),
+    })
+
+    const data = await readJson<{ content?: string; response?: string }>(response)
+
+    return {
+      content: data.content ?? data.response ?? '',
+      raw: data,
+    }
+  }
+
+  const response = await fetch(buildApiUrl(endpoint.url, '/v1/chat/completions'), {
+    method: 'POST',
+    headers: buildHeaders(endpoint),
+    body: JSON.stringify({
+      model: endpoint.model,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  const data = await readJson<OpenAIChatCompletionResponse>(response)
+
+  return {
+    content: data.choices?.[0]?.message?.content ?? '',
+    raw: data,
+    usage: {
+      promptTokens: data.usage?.prompt_tokens,
+      completionTokens: data.usage?.completion_tokens,
+      totalTokens: data.usage?.total_tokens,
+    },
+  }
+}
+
+export const testConnection = async (endpoint: LLMEndpoint): Promise<boolean> => {
+  try {
+    await listModels(endpoint)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export const listModels = async (endpoint: LLMEndpoint): Promise<string[]> => {
+  if (endpoint.apiType === 'ollama') {
+    const response = await fetch(buildApiUrl(endpoint.url, '/api/tags'))
+    const data = await readJson<OllamaTagsResponse>(response)
+    return (data.models ?? []).flatMap((model) => (model.name ? [model.name] : []))
+  }
+
+  if (endpoint.apiType === 'anthropic') {
+    return endpoint.model ? [endpoint.model] : []
+  }
+
+  if (endpoint.apiType === 'generic') {
+    return endpoint.model ? [endpoint.model] : []
+  }
+
+  const response = await fetch(buildApiUrl(endpoint.url, '/v1/models'), {
+    headers: endpoint.apiKey ? { Authorization: `Bearer ${endpoint.apiKey}` } : undefined,
+  })
+  const data = await readJson<ModelListResponse>(response)
+
+  return (data.data ?? []).flatMap((model) => (model.id ? [model.id] : []))
+}
