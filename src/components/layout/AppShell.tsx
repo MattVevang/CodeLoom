@@ -10,18 +10,22 @@ export const AppShell = () => {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="h-screen overflow-hidden bg-zinc-50 text-zinc-900 transition-colors dark:bg-zinc-950 dark:text-zinc-100">
       <Header
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
-      <div className="flex min-h-screen pt-16">
+      <div className="flex h-[calc(100vh-4rem)] pt-16">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className="grid flex-1 grid-rows-[minmax(20rem,0.85fr)_minmax(24rem,1.15fr)] gap-4 p-4 md:p-6">
-          <PromptEditor />
-          <OutputPanel />
+        <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:p-6">
+          <div className="h-[45%] min-h-[16rem] shrink-0">
+            <PromptEditor />
+          </div>
+          <div className="min-h-0 flex-1">
+            <OutputPanel />
+          </div>
         </main>
       </div>
 

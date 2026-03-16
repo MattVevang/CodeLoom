@@ -30,7 +30,7 @@ export const PromptEditor = () => {
   const canGenerate = selectedCount > 0 && config.userPrompt.trim().length > 0
 
   return (
-    <section className="panel-surface flex min-h-0 flex-col overflow-hidden">
+    <section className="panel-surface flex h-full min-h-0 flex-col overflow-hidden">
       <div className="border-b border-zinc-200/70 px-5 py-4 dark:border-zinc-800/80">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

@@ -59,7 +59,7 @@ export const OutputPanel = () => {
 
   if (!assembledPrompt) {
     return (
-      <section className="panel-surface flex min-h-0 flex-col items-center justify-center gap-4 px-6 text-center">
+      <section className="panel-surface flex h-full min-h-0 flex-col items-center justify-center gap-4 px-6 text-center">
         <div className="flex size-14 items-center justify-center rounded-2xl bg-indigo-600/10 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
           <FileOutput className="size-7" />
         </div>
@@ -74,7 +74,7 @@ export const OutputPanel = () => {
   }
 
   return (
-    <section className="panel-surface flex min-h-0 flex-col overflow-hidden">
+    <section className="panel-surface flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-zinc-800/80">
         <div className="flex flex-wrap items-center gap-2">
           <TokenCounter count={assembledPrompt.tokenEstimate} />
