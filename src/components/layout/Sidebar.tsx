@@ -45,7 +45,7 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
       <aside
         className={cn(
-          'fixed inset-y-16 left-0 z-30 flex w-[300px] flex-col border-r border-zinc-200/80 bg-white/90 transition-transform duration-300 dark:border-zinc-800/80 dark:bg-zinc-950/90',
+          'fixed inset-y-16 left-0 z-30 flex w-[260px] shrink-0 flex-col border-r border-zinc-200/80 bg-white/90 transition-transform duration-300 dark:border-zinc-800/80 dark:bg-zinc-950/90',
           'md:static md:inset-y-auto md:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full',
         )}
@@ -61,10 +61,11 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           />
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex min-h-0 flex-1 flex-col p-3">
           <Button
             variant="primary"
             fullWidth
+            size="sm"
             loading={isLoading}
             icon={<FolderOpen className="size-4" />}
             onClick={() => {
@@ -75,24 +76,21 @@ export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </Button>
 
           {error ? (
-            <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
               {error}
             </div>
           ) : null}
 
-          <div className="mt-4 min-h-0 flex-1 overflow-hidden">
+          <div className="mt-3 min-h-0 flex-1 overflow-hidden">
             <FileTree />
           </div>
 
-          <div className="mt-4 space-y-3 border-t border-zinc-200/70 pt-4 dark:border-zinc-800/80">
-            <div className="text-sm text-zinc-600 dark:text-zinc-300">
+          <div className="mt-3 shrink-0 space-y-2 border-t border-zinc-200/70 pt-3 dark:border-zinc-800/80">
+            <div className="text-xs text-zinc-600 dark:text-zinc-300">
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">{selectedCount}</span>
-              {' '}
-              of
-              {' '}
+              {' of '}
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">{totalFiles}</span>
-              {' '}
-              files selected
+              {' files selected'}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Button variant="secondary" size="sm" disabled={totalFiles === 0} onClick={selectAll}>

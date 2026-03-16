@@ -31,96 +31,67 @@ export const PromptEditor = () => {
 
   return (
     <section className="panel-surface flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="border-b border-zinc-200/70 px-5 py-4 dark:border-zinc-800/80">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Prompt editor</h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Describe the task for your local model and choose how CodeLoom packages the selected files.
-            </p>
-          </div>
-          <div className="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
-            {selectedCount} file{selectedCount === 1 ? '' : 's'} selected
-          </div>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200/70 px-4 py-3 dark:border-zinc-800/80">
+        <h2 className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">Prompt editor</h2>
+        <div className="rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-200">
+          {selectedCount} file{selectedCount === 1 ? '' : 's'} selected
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 p-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(18rem,0.95fr)]">
-        <div className="flex min-h-0 flex-col gap-3">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row">
+        <div className="flex min-h-[8rem] flex-1 flex-col gap-2 p-4">
           <textarea
             value={config.userPrompt}
             onChange={(event) => setUserPrompt(event.target.value)}
-            placeholder="Example: Create a concise architecture summary of these files, highlight the main abstractions, and suggest the best next refactor for local LLM fine-tuning."
-            className="input-field min-h-[260px] flex-1 resize-none font-mono text-sm leading-6"
+            placeholder="Describe the task for your local model. Example: Create a concise architecture summary of these files, highlight the main abstractions, and suggest the best next refactor."
+            className="input-field min-h-0 flex-1 resize-none font-mono text-sm leading-6"
           />
-
-          <div className="flex items-center justify-between gap-3 text-sm text-zinc-500 dark:text-zinc-400">
-            <span>Guide the model with constraints, desired output style, and any specific questions.</span>
-            <span>{config.userPrompt.length} characters</span>
+          <div className="flex items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>{config.userPrompt.length} chars</span>
           </div>
         </div>
 
-        <div className="panel-muted flex flex-col gap-4 p-4">
-          <div>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Prompt options</p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Tune the generated bundle for the target LLM or downstream workflow.
-            </p>
+        <div className="shrink-0 border-t border-zinc-200/70 p-4 dark:border-zinc-800/80 lg:w-64 lg:border-t-0 lg:border-l xl:w-72">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Options</p>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-2.5 rounded-md border border-zinc-200/80 px-2.5 py-1.5 text-sm dark:border-zinc-800">
+              <input type="checkbox" checked={config.includeFileTree} onChange={(event) => setIncludeFileTree(event.target.checked)} className="size-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950" />
+              <span>Include file tree</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-md border border-zinc-200/80 px-2.5 py-1.5 text-sm dark:border-zinc-800">
+              <input type="checkbox" checked={config.includeFilePaths} onChange={(event) => setIncludeFilePaths(event.target.checked)} className="size-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950" />
+              <span>Include file paths</span>
+            </label>
+
+            <label className="flex items-center gap-2.5 rounded-md border border-zinc-200/80 px-2.5 py-1.5 text-sm dark:border-zinc-800">
+              <input type="checkbox" checked={config.wrapContentInCodeBlocks} onChange={(event) => setWrapContentInCodeBlocks(event.target.checked)} className="size-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950" />
+              <span>Wrap in code blocks</span>
+            </label>
+
+            <label className="block space-y-1 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+              <span className="text-xs">Format</span>
+              <select
+                value={config.outputFormat}
+                onChange={(event) => {
+                  const nextFormat = event.target.value as OutputFormat
+                  setOutputFormat(nextFormat)
+                  setDefaultOutputFormat(nextFormat)
+                }}
+                className="input-field text-sm"
+              >
+                {outputFormats.map((format) => (
+                  <option key={format} value={format}>{format.toUpperCase()}</option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <label className="flex items-center gap-3 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-800">
-            <input
-              type="checkbox"
-              checked={config.includeFileTree}
-              onChange={(event) => setIncludeFileTree(event.target.checked)}
-              className="size-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950"
-            />
-            <span>Include file tree</span>
-          </label>
-
-          <label className="flex items-center gap-3 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-800">
-            <input
-              type="checkbox"
-              checked={config.includeFilePaths}
-              onChange={(event) => setIncludeFilePaths(event.target.checked)}
-              className="size-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950"
-            />
-            <span>Include file paths</span>
-          </label>
-
-          <label className="flex items-center gap-3 rounded-lg border border-zinc-200/80 px-3 py-2 text-sm dark:border-zinc-800">
-            <input
-              type="checkbox"
-              checked={config.wrapContentInCodeBlocks}
-              onChange={(event) => setWrapContentInCodeBlocks(event.target.checked)}
-              className="size-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950"
-            />
-            <span>Wrap in code blocks</span>
-          </label>
-
-          <label className="space-y-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-            <span className="block">Output format</span>
-            <select
-              value={config.outputFormat}
-              onChange={(event) => {
-                const nextFormat = event.target.value as OutputFormat
-                setOutputFormat(nextFormat)
-                setDefaultOutputFormat(nextFormat)
-              }}
-              className="input-field"
-            >
-              {outputFormats.map((format) => (
-                <option key={format} value={format}>
-                  {format.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="mt-auto space-y-3">
+          <div className="mt-4">
             <Button
               variant="primary"
-              size="lg"
+              size="md"
               fullWidth
               icon={<Sparkles className="size-4" />}
               disabled={!canGenerate}
@@ -131,9 +102,6 @@ export const PromptEditor = () => {
             >
               Generate Prompt
             </Button>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              Add a prompt and select at least one file to generate a bundle.
-            </p>
           </div>
         </div>
       </div>
