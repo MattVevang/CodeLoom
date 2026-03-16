@@ -230,18 +230,25 @@ export const getModelInfo = async (endpoint: LLMEndpoint, modelName: string): Pr
       })
       const data = await readJson<OllamaShowResponse>(response)
 
-      const modelInfo = data.model_info ?? {}
-      for (const [key, value] of Object.entries(modelInfo)) {
-        if (key.endsWith('.context_length') && typeof value === 'number') {
-          info.contextLength = value
-          break
+      // Prefer num_ctx from parameters — this is the operational/configured
+      // context window the model instance will actually use.
+      if (typeof data.parameters === 'string') {
+        const ctxMatch = data.parameters.match(/num_ctx\s+(\d+)/)
+        if (ctxMatch) {
+          info.contextLength = parseInt(ctxMatch[1], 10)
         }
       }
 
-      if (typeof data.parameters === 'string') {
-        const ctxMatch = data.parameters.match(/num_ctx\s+(\d+)/)
-        if (ctxMatch && !info.contextLength) {
-          info.contextLength = parseInt(ctxMatch[1], 10)
+      // Fall back to model_info.*.context_length — this is the architectural
+      // maximum the model *could* support (e.g. via YaRN scaling) but the
+      // running instance may be configured for less.
+      if (!info.contextLength) {
+        const modelInfo = data.model_info ?? {}
+        for (const [key, value] of Object.entries(modelInfo)) {
+          if (key.endsWith('.context_length') && typeof value === 'number') {
+            info.contextLength = value
+            break
+          }
         }
       }
     } catch {
