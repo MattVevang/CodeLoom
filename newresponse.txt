@@ -1,0 +1,49 @@
+Based on the files you've shared, I can see this is a FIRST Robotics Competition (FRC) 2026 project for Charger Robotics (team #3786). Here's what I understand and how I can help:
+
+🔑 Key Details About Your Project
+Component	Purpose
+settings.gradle	Configures Gradle to use the team's local Maven repo for FRC dependencies (2026)
+gradle.properties	Placeholder file (empty) - used for project-specific Gradle settings
+LICENSE	MIT license (standard for FRC projects)
+renovate.json	Configures dependency updates for your team (using GitLab)
+WPILib-License.md	Official WPILib license (required for FRC projects)
+build.gradle	Main build configuration for your robot code
+✅ What I Can Help With
+Since you didn't specify a question, here are the most common issues for FRC 2026 projects:
+
+How to run your robot code?
+
+# On Linux/macOS
+./gradlew run
+
+# On Windows
+gradlew.bat run
+Dependency issues?
+Your project uses a local Maven repo at:
+
+Windows: C:\Users\Public\wpilib\2026
+macOS/Linux: ~/.wpilib/2026
+(This is set up in settings.gradle)
+Why is gradle.properties empty?
+This is intentional - it's a placeholder for your team's specific Gradle settings (e.g., Java version, build tools).
+
+Why does renovate.json point to GitLab?
+This configures automated dependency updates for your team's GitLab repository (standard for FRC teams).
+
+License compliance
+All FRC projects must follow the WPILib license [blocked] and MIT license (your LICENSE file).
+
+🛠️ Quick Fix for Common Problems
+Problem	Solution
+"JAVA_HOME not set" error	Set JAVA_HOME to your JDK path (e.g., C:\Program Files\Java\jdk-17)
+Gradle builds fail with 404s	Ensure your local Maven repo (~/.wpilib/2026) has the latest WPILib 2026 dependencies
+gradle-wrapper.properties issue	Update distributionUrl to the latest Gradle version (e.g., 7.5.1)
+💡 Pro Tip for Charger Robotics
+"Always run ./gradlew dependencies to check if your local Maven repo has the correct FRC 2026 dependencies. This prevents 90% of build failures!"
+
+Next Steps
+Tell me what you need help with specifically (e.g., "How do I fix dependency errors?", "Why is my robot code not compiling?", "How do I update dependencies?"), and I'll give you a step-by-step solution.
+
+This is a standard FRC 2026 project setup - you're on the right track! 🚀
+
+(Example: If you say "I get a 404 error when running ./gradlew run", I'll show you how to fix it using your local Maven repo.)

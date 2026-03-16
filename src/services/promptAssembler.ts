@@ -22,12 +22,16 @@ const detectLanguage = (filePath: string): string => {
     case 'md':
       return 'markdown'
     case 'html':
+    case 'htm':
       return 'html'
     case 'css':
       return 'css'
     case 'scss':
       return 'scss'
     case 'xml':
+    case 'pom':
+    case 'csproj':
+    case 'fsproj':
       return 'xml'
     case 'yml':
     case 'yaml':
@@ -41,11 +45,68 @@ const detectLanguage = (filePath: string): string => {
     case 'rs':
       return 'rust'
     case 'sh':
+    case 'bash':
+    case 'zsh':
       return 'bash'
+    case 'bat':
+    case 'cmd':
+      return 'batch'
+    case 'ps1':
+    case 'psm1':
+      return 'powershell'
     case 'sql':
       return 'sql'
+    case 'java':
+      return 'java'
+    case 'kt':
+    case 'kts':
+      return 'kotlin'
+    case 'scala':
+      return 'scala'
+    case 'cs':
+      return 'csharp'
+    case 'cpp':
+    case 'cc':
+    case 'cxx':
+      return 'cpp'
+    case 'c':
+    case 'h':
+      return 'c'
+    case 'hpp':
+      return 'cpp'
+    case 'swift':
+      return 'swift'
+    case 'dart':
+      return 'dart'
+    case 'r':
+      return 'r'
+    case 'php':
+      return 'php'
+    case 'lua':
+      return 'lua'
+    case 'toml':
+      return 'toml'
+    case 'ini':
+    case 'cfg':
+    case 'conf':
+    case 'properties':
+      return 'ini'
+    case 'gradle':
+    case 'groovy':
+      return 'groovy'
+    case 'dockerfile':
+      return 'dockerfile'
+    case 'makefile':
+      return 'makefile'
+    case 'tf':
+    case 'hcl':
+      return 'hcl'
+    case 'vue':
+      return 'vue'
+    case 'svelte':
+      return 'svelte'
     default:
-      return 'text'
+      return ''
   }
 }
 
@@ -110,15 +171,11 @@ const buildMarkdownPrompt = (files: FileNode[], config: PromptConfig): string =>
   const sections: string[] = []
   const userPrompt = config.userPrompt.trim()
 
-  if (userPrompt) {
-    sections.push(userPrompt)
-  }
-
   if (files.length > 0) {
     sections.push(
-      'I have a project that includes the following files. '
-      + 'Each file\'s name and full content are provided below. '
-      + 'Use these file contents to answer my request.',
+      'The following are files from a project. '
+      + 'Each file\'s path and full content are provided. '
+      + 'Read all files, then answer the instruction at the end.',
     )
   }
 
@@ -134,6 +191,10 @@ const buildMarkdownPrompt = (files: FileNode[], config: PromptConfig): string =>
     )
   })
 
+  if (userPrompt) {
+    sections.push(`---\n\n## Instruction\n\n${userPrompt}`)
+  }
+
   return sections.join('\n\n')
 }
 
@@ -141,15 +202,11 @@ const buildPlainPrompt = (files: FileNode[], config: PromptConfig): string => {
   const sections: string[] = []
   const userPrompt = config.userPrompt.trim()
 
-  if (userPrompt) {
-    sections.push(userPrompt)
-  }
-
   if (files.length > 0) {
     sections.push(
-      'I have a project that includes the following files. '
-      + 'Each file\'s name and full content are provided between BEGIN/END markers. '
-      + 'Use these file contents to answer my request.',
+      'The following are files from a project. '
+      + 'Each file\'s path and full content are provided between BEGIN/END markers. '
+      + 'Read all files, then answer the instruction at the end.',
     )
   }
 
@@ -165,6 +222,10 @@ const buildPlainPrompt = (files: FileNode[], config: PromptConfig): string => {
     )
   })
 
+  if (userPrompt) {
+    sections.push(`INSTRUCTION:\n${userPrompt}`)
+  }
+
   return sections.join('\n\n')
 }
 
@@ -172,15 +233,11 @@ const buildXmlPrompt = (files: FileNode[], config: PromptConfig): string => {
   const lines = ['<prompt>']
   const userPrompt = config.userPrompt.trim()
 
-  if (userPrompt) {
-    lines.push(`  <instruction><![CDATA[${toCData(userPrompt)}]]></instruction>`)
-  }
-
   if (files.length > 0) {
     lines.push(
       '  <context>The following files are from a project. '
       + 'Each file element contains the file path and its full source content. '
-      + 'Use these to answer the instruction above.</context>',
+      + 'Read all files, then answer the instruction at the end.</context>',
     )
   }
 
@@ -199,6 +256,11 @@ const buildXmlPrompt = (files: FileNode[], config: PromptConfig): string => {
   })
 
   lines.push('  </files>')
+
+  if (userPrompt) {
+    lines.push(`  <instruction><![CDATA[${toCData(userPrompt)}]]></instruction>`)
+  }
+
   lines.push('</prompt>')
 
   return lines.join('\n')
