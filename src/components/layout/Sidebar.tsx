@@ -13,25 +13,25 @@ interface SidebarProps {
 }
 
 const countFiles = (node: FileNode | null): number => {
-  if (!node) {
-    return 0
-  }
-
-  if (node.type === 'file') {
-    return 1
-  }
-
+  if (!node) return 0
+  if (node.type === 'file') return 1
   return (node.children ?? []).reduce((total, child) => total + countFiles(child), 0)
+}
+
+const countSelectedFiles = (node: FileNode | null): number => {
+  if (!node) return 0
+  if (node.type === 'file') return node.isSelected ? 1 : 0
+  return (node.children ?? []).reduce((sum, child) => sum + countSelectedFiles(child), 0)
 }
 
 export const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const rootNode = useFileStore((state) => state.rootNode)
   const selectAll = useFileStore((state) => state.selectAll)
   const deselectAll = useFileStore((state) => state.deselectAll)
-  const selectedCount = useFileStore((state) => state.getSelectedCount())
   const { openFolder, isLoading, error } = useFileSystem()
 
   const totalFiles = useMemo(() => countFiles(rootNode), [rootNode])
+  const selectedCount = useMemo(() => countSelectedFiles(rootNode), [rootNode])
 
   return (
     <>

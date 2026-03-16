@@ -1,16 +1,23 @@
 import { Sparkles } from 'lucide-react'
+import { useMemo } from 'react'
 import { assemblePrompt } from '@/services/promptAssembler'
 import { useFileStore } from '@/stores/fileStore'
 import { usePromptStore } from '@/stores/promptStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import { Button } from '@/components/ui/Button'
-import type { OutputFormat } from '@/types'
+import type { FileNode, OutputFormat } from '@/types'
 
 const outputFormats: OutputFormat[] = ['markdown', 'xml', 'plain']
 
+const countSelected = (node: FileNode | null): number => {
+  if (!node) return 0
+  if (node.type === 'file') return node.isSelected ? 1 : 0
+  return (node.children ?? []).reduce((sum, child) => sum + countSelected(child), 0)
+}
+
 export const PromptEditor = () => {
-  const selectedFiles = useFileStore((state) => state.getSelectedFiles())
-  const selectedCount = useFileStore((state) => state.getSelectedCount())
+  const rootNode = useFileStore((state) => state.rootNode)
+  const selectedCount = useMemo(() => countSelected(rootNode), [rootNode])
   const config = usePromptStore((state) => state.config)
   const setUserPrompt = usePromptStore((state) => state.setUserPrompt)
   const setIncludeFileTree = usePromptStore((state) => state.setIncludeFileTree)
@@ -117,7 +124,10 @@ export const PromptEditor = () => {
               fullWidth
               icon={<Sparkles className="size-4" />}
               disabled={!canGenerate}
-              onClick={() => setAssembledPrompt(assemblePrompt(selectedFiles, config))}
+              onClick={() => {
+                const files = useFileStore.getState().getSelectedFiles()
+                setAssembledPrompt(assemblePrompt(files, config))
+              }}
             >
               Generate Prompt
             </Button>
