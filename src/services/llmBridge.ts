@@ -1,4 +1,4 @@
-import type { LLMEndpoint, LLMResponse } from '@/types'
+import type { ChatMessage, LLMEndpoint, LLMResponse } from '@/types'
 
 interface OllamaGenerateResponse {
   response?: string
@@ -178,6 +178,115 @@ export const sendToLLM = async (endpoint: LLMEndpoint, prompt: string): Promise<
     body: JSON.stringify({
       model: endpoint.model,
       messages: [{ role: 'user', content: prompt }],
+    }),
+  })
+
+  const data = await readJson<OpenAIChatCompletionResponse>(response)
+
+  return {
+    content: data.choices?.[0]?.message?.content ?? '',
+    raw: data,
+    usage: {
+      promptTokens: data.usage?.prompt_tokens,
+      completionTokens: data.usage?.completion_tokens,
+      totalTokens: data.usage?.total_tokens,
+    },
+  }
+}
+
+interface OllamaChatResponse {
+  message?: { role?: string; content?: string }
+  prompt_eval_count?: number
+  eval_count?: number
+}
+
+export const chatWithLLM = async (
+  endpoint: LLMEndpoint,
+  messages: ChatMessage[],
+): Promise<LLMResponse> => {
+  if (endpoint.apiType === 'ollama') {
+    const response = await fetch(buildApiUrl(endpoint.url, '/api/chat'), {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        stream: false,
+      }),
+    })
+
+    const data = await readJson<OllamaChatResponse>(response)
+
+    return {
+      content: data.message?.content ?? '',
+      raw: data,
+      usage: {
+        promptTokens: data.prompt_eval_count,
+        completionTokens: data.eval_count,
+        totalTokens:
+          typeof data.prompt_eval_count === 'number' || typeof data.eval_count === 'number'
+            ? (data.prompt_eval_count ?? 0) + (data.eval_count ?? 0)
+            : undefined,
+      },
+    }
+  }
+
+  if (endpoint.apiType === 'anthropic') {
+    const response = await fetch(buildApiUrl(endpoint.url, '/v1/messages'), {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        max_tokens: 4096,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    })
+
+    const data = await readJson<{
+      content?: Array<{ text?: string }>
+      usage?: { input_tokens?: number; output_tokens?: number }
+    }>(response)
+
+    return {
+      content: data.content?.map((entry) => entry.text ?? '').join('') ?? '',
+      raw: data,
+      usage: {
+        promptTokens: data.usage?.input_tokens,
+        completionTokens: data.usage?.output_tokens,
+        totalTokens:
+          typeof data.usage?.input_tokens === 'number' || typeof data.usage?.output_tokens === 'number'
+            ? (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0)
+            : undefined,
+      },
+    }
+  }
+
+  if (endpoint.apiType === 'generic') {
+    const lastMessage = messages[messages.length - 1]
+    const response = await fetch(endpoint.url, {
+      method: 'POST',
+      headers: buildHeaders(endpoint),
+      body: JSON.stringify({
+        model: endpoint.model,
+        prompt: lastMessage?.content ?? '',
+      }),
+    })
+
+    const data = await readJson<{ content?: string; response?: string }>(response)
+
+    return {
+      content: data.content ?? data.response ?? '',
+      raw: data,
+    }
+  }
+
+  // OpenAI-compatible
+  const response = await fetch(buildApiUrl(endpoint.url, '/v1/chat/completions'), {
+    method: 'POST',
+    headers: buildHeaders(endpoint),
+    body: JSON.stringify({
+      model: endpoint.model,
+      messages: messages.map((m) => ({ role: m.role, content: m.content })),
     }),
   })
 

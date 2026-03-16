@@ -4,6 +4,11 @@ export type OutputFormat = 'markdown' | 'xml' | 'plain'
 
 export type LLMApiType = 'openai' | 'ollama' | 'anthropic' | 'generic'
 
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface FileNode {
   name: string
   path: string
