@@ -35,6 +35,14 @@ interface OllamaTagsResponse {
   }>
 }
 
+interface OllamaPsResponse {
+  models?: Array<{
+    name?: string
+    model?: string
+    context_length?: number
+  }>
+}
+
 export interface ModelInfo {
   name: string
   contextLength?: number
@@ -222,6 +230,21 @@ export const getModelInfo = async (endpoint: LLMEndpoint, modelName: string): Pr
   const info: ModelInfo = { name: modelName }
 
   if (endpoint.apiType === 'ollama') {
+    // 1. Check /api/ps for running model — returns the actual runtime context
+    try {
+      const psResponse = await fetch(buildApiUrl(endpoint.url, '/api/ps'))
+      const psData = await readJson<OllamaPsResponse>(psResponse)
+      const running = (psData.models ?? []).find(
+        (m) => m.name === modelName || m.model === modelName,
+      )
+      if (running?.context_length) {
+        info.contextLength = running.context_length
+      }
+    } catch {
+      // /api/ps is best-effort
+    }
+
+    // 2. Query /api/show for metadata and fallback context values
     try {
       const response = await fetch(buildApiUrl(endpoint.url, '/api/show'), {
         method: 'POST',
@@ -230,18 +253,17 @@ export const getModelInfo = async (endpoint: LLMEndpoint, modelName: string): Pr
       })
       const data = await readJson<OllamaShowResponse>(response)
 
-      // Prefer num_ctx from parameters — this is the operational/configured
-      // context window the model instance will actually use.
-      if (typeof data.parameters === 'string') {
+      // If we didn't get context from /api/ps, check num_ctx from parameters
+      // (the explicitly configured context for this model)
+      if (!info.contextLength && typeof data.parameters === 'string') {
         const ctxMatch = data.parameters.match(/num_ctx\s+(\d+)/)
         if (ctxMatch) {
           info.contextLength = parseInt(ctxMatch[1], 10)
         }
       }
 
-      // Fall back to model_info.*.context_length — this is the architectural
-      // maximum the model *could* support (e.g. via YaRN scaling) but the
-      // running instance may be configured for less.
+      // Last resort: model_info.*.context_length (architectural max — may be
+      // much larger than what Ollama actually allocates at runtime)
       if (!info.contextLength) {
         const modelInfo = data.model_info ?? {}
         for (const [key, value] of Object.entries(modelInfo)) {
