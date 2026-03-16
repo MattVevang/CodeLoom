@@ -1,4 +1,4 @@
-import { Copy, Download, FileOutput, SendHorizontal } from 'lucide-react'
+import { Copy, Download, FileOutput, SendHorizontal, ShieldCheck } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useClipboard } from '@/hooks/useClipboard'
@@ -68,6 +68,12 @@ export const OutputPanel = () => {
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             Generate a prompt to preview the final context bundle, estimate token usage, and share it with your local LLM.
           </p>
+        </div>
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-200/60 bg-emerald-50/50 px-4 py-2.5 text-xs text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-300">
+          <ShieldCheck className="size-4 shrink-0" />
+          <span>
+            <strong>Your data never leaves your device.</strong> All file reading, prompt assembly, and processing happens entirely in your browser. Nothing is sent to any server unless you explicitly choose to send a prompt to your own local LLM endpoint.
+          </span>
         </div>
       </section>
     )
