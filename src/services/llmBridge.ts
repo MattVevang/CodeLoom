@@ -28,7 +28,23 @@ interface ModelListResponse {
 interface OllamaTagsResponse {
   models?: Array<{
     name?: string
+    details?: {
+      parameter_size?: string
+      quantization_level?: string
+    }
   }>
+}
+
+export interface ModelInfo {
+  name: string
+  contextLength?: number
+  parameterSize?: string
+  quantization?: string
+}
+
+interface OllamaShowResponse {
+  model_info?: Record<string, unknown>
+  parameters?: string
 }
 
 const buildApiUrl = (baseUrl: string, apiPath: string): string => {
@@ -200,4 +216,60 @@ export const listModels = async (endpoint: LLMEndpoint): Promise<string[]> => {
   const data = await readJson<ModelListResponse>(response)
 
   return (data.data ?? []).flatMap((model) => (model.id ? [model.id] : []))
+}
+
+export const getModelInfo = async (endpoint: LLMEndpoint, modelName: string): Promise<ModelInfo> => {
+  const info: ModelInfo = { name: modelName }
+
+  if (endpoint.apiType === 'ollama') {
+    try {
+      const response = await fetch(buildApiUrl(endpoint.url, '/api/show'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: modelName }),
+      })
+      const data = await readJson<OllamaShowResponse>(response)
+
+      const modelInfo = data.model_info ?? {}
+      for (const [key, value] of Object.entries(modelInfo)) {
+        if (key.endsWith('.context_length') && typeof value === 'number') {
+          info.contextLength = value
+          break
+        }
+      }
+
+      if (typeof data.parameters === 'string') {
+        const ctxMatch = data.parameters.match(/num_ctx\s+(\d+)/)
+        if (ctxMatch && !info.contextLength) {
+          info.contextLength = parseInt(ctxMatch[1], 10)
+        }
+      }
+    } catch {
+      // Model info is best-effort
+    }
+  }
+
+  return info
+}
+
+export const listModelsDetailed = async (endpoint: LLMEndpoint): Promise<ModelInfo[]> => {
+  if (endpoint.apiType === 'ollama') {
+    try {
+      const response = await fetch(buildApiUrl(endpoint.url, '/api/tags'))
+      const data = await readJson<OllamaTagsResponse>(response)
+      return (data.models ?? []).flatMap((model) => {
+        if (!model.name) return []
+        return [{
+          name: model.name,
+          parameterSize: model.details?.parameter_size,
+          quantization: model.details?.quantization_level,
+        }]
+      })
+    } catch {
+      return []
+    }
+  }
+
+  const names = await listModels(endpoint)
+  return names.map((name) => ({ name }))
 }

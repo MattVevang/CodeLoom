@@ -1,10 +1,11 @@
-import { CheckCircle2, Plus, Trash2, Wifi, XCircle } from 'lucide-react'
+import { CheckCircle2, Plus, RefreshCw, Trash2, Wifi, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Toggle } from '@/components/ui/Toggle'
-import { testConnection } from '@/services/llmBridge'
+import { getModelInfo, listModelsDetailed, testConnection } from '@/services/llmBridge'
+import type { ModelInfo } from '@/services/llmBridge'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { LLMApiType, ThemeMode } from '@/types'
 
@@ -24,7 +25,7 @@ interface EndpointFormState {
 const initialFormState: EndpointFormState = {
   name: '',
   url: 'http://localhost:11434',
-  model: 'llama3.2',
+  model: '',
   apiType: 'ollama',
   apiKey: '',
 }
@@ -43,17 +44,50 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
   const addLLMEndpoint = useSettingsStore((state) => state.addLLMEndpoint)
   const removeLLMEndpoint = useSettingsStore((state) => state.removeLLMEndpoint)
   const setActiveLLMEndpoint = useSettingsStore((state) => state.setActiveLLMEndpoint)
+  const updateLLMEndpoint = useSettingsStore((state) => state.updateLLMEndpoint)
   const defaultFilters = useSettingsStore((state) => state.defaultFilters)
   const updateDefaultFilters = useSettingsStore((state) => state.updateDefaultFilters)
   const [formState, setFormState] = useState<EndpointFormState>(initialFormState)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [connectionResults, setConnectionResults] = useState<Record<string, boolean>>({})
+  const [detectedModels, setDetectedModels] = useState<ModelInfo[]>([])
+  const [detectingModels, setDetectingModels] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleDetectModels = async () => {
+    if (!formState.url.trim()) return
+    setDetectingModels(true)
+    try {
+      const models = await listModelsDetailed({
+        id: '', name: '', url: formState.url.trim(),
+        model: '', apiType: formState.apiType,
+      })
+      setDetectedModels(models)
+      if (models.length > 0 && !formState.model) {
+        setFormState((s) => ({ ...s, model: models[0].name }))
+      }
+    } catch {
+      setDetectedModels([])
+    } finally {
+      setDetectingModels(false)
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!formState.name.trim() || !formState.url.trim() || !formState.model.trim()) {
       return
+    }
+
+    let contextLength: number | undefined
+    try {
+      const info = await getModelInfo(
+        { id: '', name: '', url: formState.url.trim(), model: formState.model.trim(), apiType: formState.apiType },
+        formState.model.trim(),
+      )
+      contextLength = info.contextLength
+    } catch {
+      // best-effort
     }
 
     addLLMEndpoint({
@@ -62,8 +96,10 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
       model: formState.model.trim(),
       apiType: formState.apiType,
       apiKey: formState.apiKey.trim() || undefined,
+      contextLength,
     })
     setFormState(initialFormState)
+    setDetectedModels([])
   }
 
   const handleTestConnection = async (endpointId: string) => {
@@ -80,6 +116,17 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
         ...state,
         [endpointId]: result,
       }))
+
+      if (result && !endpoint.contextLength) {
+        try {
+          const info = await getModelInfo(endpoint, endpoint.model)
+          if (info.contextLength) {
+            updateLLMEndpoint(endpoint.id, { contextLength: info.contextLength })
+          }
+        } catch {
+          // best-effort
+        }
+      }
     } finally {
       setTestingId(null)
     }
@@ -211,6 +258,7 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                           <p className="text-sm text-zinc-500 dark:text-zinc-400">{endpoint.url}</p>
                           <p className="text-xs uppercase tracking-[0.16em] text-zinc-400 dark:text-zinc-500">
                             {endpoint.apiType} · {endpoint.model}
+                            {endpoint.contextLength ? ` · ${new Intl.NumberFormat().format(endpoint.contextLength)} ctx` : ''}
                           </p>
                         </div>
 
@@ -278,36 +326,68 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Add endpoint</h3>
             </div>
 
-            <form className="grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => { void handleSubmit(e) }}>
               <input
                 type="text"
                 value={formState.name}
                 onChange={(event) => setFormState((state) => ({ ...state, name: event.target.value }))}
-                placeholder="Name"
+                placeholder="Name (e.g. My Ollama)"
                 className="input-field"
               />
-              <input
-                type="url"
-                value={formState.url}
-                onChange={(event) => setFormState((state) => ({ ...state, url: event.target.value }))}
-                placeholder="URL"
-                className="input-field"
-              />
-              <input
-                type="text"
-                value={formState.model}
-                onChange={(event) => setFormState((state) => ({ ...state, model: event.target.value }))}
-                placeholder="Model"
-                className="input-field"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={formState.url}
+                  onChange={(event) => setFormState((state) => ({ ...state, url: event.target.value }))}
+                  placeholder="URL"
+                  className="input-field"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={detectingModels}
+                  icon={<RefreshCw className="size-3.5" />}
+                  onClick={() => { void handleDetectModels() }}
+                  aria-label="Detect available models"
+                />
+              </div>
+              {detectedModels.length > 0 ? (
+                <div className="md:col-span-2">
+                  <label className="block space-y-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    <span>Detected models — select one:</span>
+                    <select
+                      value={formState.model}
+                      onChange={(event) => setFormState((s) => ({ ...s, model: event.target.value }))}
+                      className="input-field text-sm"
+                    >
+                      <option value="" disabled>Choose a model…</option>
+                      {detectedModels.map((m) => (
+                        <option key={m.name} value={m.name}>
+                          {m.name}{m.parameterSize ? ` (${m.parameterSize})` : ''}{m.quantization ? ` [${m.quantization}]` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={formState.model}
+                  onChange={(event) => setFormState((state) => ({ ...state, model: event.target.value }))}
+                  placeholder="Model name"
+                  className="input-field"
+                />
+              )}
               <select
                 value={formState.apiType}
-                onChange={(event) =>
+                onChange={(event) => {
                   setFormState((state) => ({
                     ...state,
                     apiType: event.target.value as LLMApiType,
                   }))
-                }
+                  setDetectedModels([])
+                }}
                 className="input-field"
               >
                 <option value="ollama">Ollama</option>

@@ -39,6 +39,7 @@ export interface LLMEndpoint {
   model: string
   apiType: LLMApiType
   apiKey?: string
+  contextLength?: number
 }
 
 export interface FileFilterDefaults {

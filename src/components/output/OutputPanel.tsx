@@ -83,7 +83,7 @@ export const OutputPanel = () => {
     <section className="panel-surface flex h-full min-h-0 flex-col overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-zinc-800/80">
         <div className="flex flex-wrap items-center gap-2">
-          <TokenCounter count={assembledPrompt.tokenEstimate} />
+          <TokenCounter count={assembledPrompt.tokenEstimate} contextLimit={activeEndpoint?.contextLength} />
           <span className="rounded-full border border-zinc-200 px-3 py-1 text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
             {assembledPrompt.fileCount} file{assembledPrompt.fileCount === 1 ? '' : 's'}
           </span>
