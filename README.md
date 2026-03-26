@@ -38,6 +38,8 @@ docker compose up --build
 
 Then open `http://localhost:8080`.
 
+> Note: Docker builds with a root base path (`/`) so static assets resolve correctly at `localhost`. GitHub Pages keeps using the `/CodeLoom/` base path.
+
 ## How It Works
 
 1. **Select Files**  
