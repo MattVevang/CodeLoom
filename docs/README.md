@@ -18,6 +18,8 @@ CodeLoom turns a local project directory into a prompt-ready workspace. You can 
 
 CodeLoom runs entirely in the browser on the user's machine. File selection, content reading, filtering, prompt assembly, and token estimation happen locally, with zero server-side processing in the app itself.
 
+The app only performs network requests when the user explicitly sends a prompt to a configured LLM endpoint. Endpoint URLs are constrained to localhost and private-network targets to avoid accidental prompt transmission to public hosts.
+
 ## Quick Links
 
 - [Architecture](./architecture.md)

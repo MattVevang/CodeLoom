@@ -59,10 +59,12 @@ docs/           Project documentation
 
 CodeLoom is designed to keep repository content on the user's machine. A browser-only architecture avoids server-side file uploads, reduces operational risk, simplifies deployment to static hosting, and keeps privacy expectations easy to understand.
 
+To harden this model, endpoint configuration is validated so LLM traffic can target only localhost or private-network addresses. This keeps intentional prompt send behavior available while reducing the risk of accidentally wiring the app to public endpoints.
+
 ## File System Access API and Fallback
 
 The preferred integration is the browser's File System Access API, which allows CodeLoom to request a directory handle and then read approved files locally. When the API is unavailable, the fallback path is a manual file-selection flow that accepts individual files or drag-and-drop input and then builds a compatible in-memory tree for the rest of the pipeline.
 
 ## LLM Bridge Design
 
-The bridge layer targets local chat-completions-style HTTP endpoints. It converts assembled prompt content into a request payload, sends it only to endpoints chosen by the user, and keeps endpoint configuration in local persisted settings. This design preserves the client-side workflow while making it easy to connect to self-hosted model runtimes.
+The bridge layer targets local chat-completions-style HTTP endpoints. It converts assembled prompt content into a request payload and sends it only when users explicitly trigger send from the output panel. Endpoint configuration is stored in local persisted settings and validated to localhost/private-network hosts.
