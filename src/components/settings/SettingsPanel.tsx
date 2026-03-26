@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Toggle } from '@/components/ui/Toggle'
+import { isLocalEnvironment } from '@/lib/environment'
 import { getModelInfo, listModelsDetailed, testConnection } from '@/services/llmBridge'
 import type { ModelInfo } from '@/services/llmBridge'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -37,6 +38,7 @@ const themeOptions: Array<{ value: ThemeMode; label: string }> = [
 ]
 
 export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
+  const isLocal = isLocalEnvironment()
   const theme = useSettingsStore((state) => state.theme)
   const setTheme = useSettingsStore((state) => state.setTheme)
   const llmEndpoints = useSettingsStore((state) => state.llmEndpoints)
@@ -221,6 +223,7 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
           </section>
         </div>
 
+        {isLocal ? (
         <div className="space-y-6">
           <section className="space-y-4">
             <div>
@@ -410,6 +413,55 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
             </form>
           </section>
         </div>
+        ) : (
+        <div className="space-y-6">
+          <section className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+                LLM integration
+              </h3>
+            </div>
+
+            <div className="rounded-lg border border-amber-200/60 bg-amber-50/50 p-4 dark:border-amber-500/20 dark:bg-amber-500/5">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                LLM features are available when running locally
+              </p>
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                Browser security prevents this hosted site from connecting to LLM services on your
+                device. To use the Send&nbsp;to&nbsp;LLM feature, run CodeLoom locally:
+              </p>
+              <div className="mt-3 space-y-2">
+                <div className="rounded-md bg-amber-100/60 p-3 dark:bg-amber-500/10">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    Docker (recommended)
+                  </p>
+                  <code className="mt-1 block text-sm text-amber-900 dark:text-amber-100">
+                    docker compose up --build -d
+                  </code>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Then open <strong>http://localhost:8080</strong>
+                  </p>
+                </div>
+                <div className="rounded-md bg-amber-100/60 p-3 dark:bg-amber-500/10">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                    npm
+                  </p>
+                  <code className="mt-1 block text-sm text-amber-900 dark:text-amber-100">
+                    npm install &amp;&amp; npm run dev
+                  </code>
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                    Then open <strong>http://localhost:5173</strong>
+                  </p>
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                All other features — file browsing, prompt assembly, copy, and download — work fully
+                on this hosted version.
+              </p>
+            </div>
+          </section>
+        </div>
+        )}
       </div>
 
       <div className="flex justify-end border-t border-zinc-200/70 px-6 py-4 dark:border-zinc-800/80">

@@ -14,8 +14,9 @@ CodeLoom is a browser-based workspace for assembling source files, repository co
 - 🧵 **Prompt assembly** with file trees, file paths, and content formatting controls
 - 📏 **Token estimation** to keep prompt size visible before export
 - 📋 **Clipboard-ready output** for fast handoff into local workflows
-- 🔌 **LLM bridge support** for local chat-completions-style endpoints
+- 🔌 **LLM bridge support** for local chat-completions-style endpoints (local deployment only)
 - 🔒 **Client-side privacy** with zero server-side repository processing
+- 🖥️ **Environment-aware UI** — automatically detects local vs. hosted and surfaces the right features
 
 ## Screenshot
 
@@ -48,6 +49,23 @@ Then open `http://localhost:8080`.
    Add instructions, choose output options, and shape the final context package.
 3. **Generate & Copy**  
    Build the prompt, review the token estimate, and copy the result for local model usage.
+4. **Send to LLM** *(local deployment only)*  
+   When running locally, send the assembled prompt directly to Ollama or any OpenAI-compatible endpoint and chat with it.
+
+## Hosted vs. Local
+
+CodeLoom runs in two modes, automatically detected at page load:
+
+| Capability | GitHub Pages | Docker / npm dev |
+| --- | :---: | :---: |
+| File browsing & selection | ✅ | ✅ |
+| Prompt assembly & token estimation | ✅ | ✅ |
+| Copy & download prompt | ✅ | ✅ |
+| LLM endpoint configuration | — | ✅ |
+| Send to LLM / chat | — | ✅ |
+| Model detection & connection testing | — | ✅ |
+
+**Why?** Browser security (CORS) prevents a public HTTPS site from reaching services on your local network. When CodeLoom runs from `localhost`, the browser allows these connections natively — no special configuration needed.
 
 ## Privacy & Security
 
@@ -80,10 +98,10 @@ See the [documentation hub](./docs/README.md) for architecture notes, API refere
 
 ## Deployment Options
 
-- **npm development server** for local iteration
-- **Docker** for a portable static deployment on port `8080`
-- **Static hosting** by serving the generated `dist/` directory with any standard web server
-- **GitHub Pages** via `.github/workflows/pages.yml` on push to `main`
+- **Docker** *(recommended for full LLM features)* — `docker compose up --build` → `http://localhost:8080`
+- **npm development server** — `npm run dev` → `http://localhost:5173/CodeLoom/`
+- **GitHub Pages** — prompt assembly, copy & download (LLM features hidden)
+- **Static hosting** — serve the `dist/` directory; LLM features available when served from localhost
 
 ### GitHub Pages URL
 

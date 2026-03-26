@@ -1,5 +1,6 @@
 import { Info } from 'lucide-react'
 import { useState } from 'react'
+import { isLocalEnvironment } from '@/lib/environment'
 import { formatTokenCount, getTokenWarningLevel } from '@/services/tokenEstimator'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +17,7 @@ const toneClasses = {
 
 export const TokenCounter = ({ count, contextLimit }: TokenCounterProps) => {
   const [showTooltip, setShowTooltip] = useState(false)
+  const isLocal = isLocalEnvironment()
   const warningLevel = contextLimit
     ? count > contextLimit ? 'danger' : count > contextLimit * 0.75 ? 'warning' : 'ok'
     : getTokenWarningLevel(count)
@@ -65,11 +67,11 @@ export const TokenCounter = ({ count, contextLimit }: TokenCounterProps) => {
                   : 'Your prompt fits within this limit.'
               }
             </p>
-          ) : (
+          ) : isLocal ? (
             <p className="mt-1.5 text-zinc-500 dark:text-zinc-400">
               Configure an LLM endpoint with a model to see context size limits.
             </p>
-          )}
+          ) : null}
         </div>
       ) : null}
     </div>

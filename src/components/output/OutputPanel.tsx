@@ -1,7 +1,8 @@
-import { Bot, Copy, Download, FileOutput, Loader2, SendHorizontal, ShieldCheck, User } from 'lucide-react'
+import { Bot, Copy, Download, FileOutput, Loader2, Monitor, SendHorizontal, ShieldCheck, User } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useClipboard } from '@/hooks/useClipboard'
+import { isLocalEnvironment } from '@/lib/environment'
 import { formatBytes } from '@/lib/utils'
 import { chatWithLLM } from '@/services/llmBridge'
 import { usePromptStore } from '@/stores/promptStore'
@@ -10,6 +11,7 @@ import { TokenCounter } from '@/components/output/TokenCounter'
 import type { ChatMessage } from '@/types'
 
 export const OutputPanel = () => {
+  const isLocal = isLocalEnvironment()
   const assembledPrompt = usePromptStore((state) => state.assembledPrompt)
   const llmEndpoints = useSettingsStore((state) => state.llmEndpoints)
   const activeEndpointId = useSettingsStore((state) => state.activeLLMEndpoint)
@@ -119,12 +121,21 @@ export const OutputPanel = () => {
             <strong>Your data never leaves your device.</strong> All file reading, prompt assembly, and processing happens entirely in your browser. Nothing is sent to any server unless you explicitly choose to send a prompt to your own local LLM endpoint.
           </span>
         </div>
+        {!isLocal ? (
+          <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-200/60 bg-amber-50/50 px-4 py-2.5 text-xs text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/5 dark:text-amber-300">
+            <Monitor className="size-4 shrink-0" />
+            <span>
+              <strong>Hosted mode</strong> — copy or download your prompt and paste it into your LLM.
+              For direct Send&nbsp;to&nbsp;LLM, run CodeLoom locally via Docker or npm.
+            </span>
+          </div>
+        ) : null}
       </section>
     )
   }
 
-  // Conversation view
-  if (showChat && conversation.length > 0) {
+  // Conversation view (local environment only)
+  if (isLocal && showChat && conversation.length > 0) {
     return (
       <section className="panel-surface flex h-full min-h-0 flex-col overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/70 px-5 py-3 dark:border-zinc-800/80">
@@ -259,7 +270,7 @@ export const OutputPanel = () => {
           >
             Download
           </Button>
-          {activeEndpoint ? (
+          {isLocal && activeEndpoint ? (
             <Button
               variant="primary"
               size="sm"
@@ -270,7 +281,7 @@ export const OutputPanel = () => {
               Send to LLM
             </Button>
           ) : null}
-          {conversation.length > 0 ? (
+          {isLocal && conversation.length > 0 ? (
             <Button
               variant="ghost"
               size="sm"

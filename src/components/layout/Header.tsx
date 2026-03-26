@@ -1,6 +1,7 @@
 import { Menu, Moon, Settings, Sun, Workflow } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useTheme } from '@/hooks/useTheme'
+import { isLocalEnvironment } from '@/lib/environment'
 import { useFileStore } from '@/stores/fileStore'
 
 interface HeaderProps {
@@ -11,6 +12,7 @@ interface HeaderProps {
 export const Header = ({ onOpenSettings, onToggleSidebar }: HeaderProps) => {
   const rootDirName = useFileStore((state) => state.rootDirName)
   const { isDark, setTheme } = useTheme()
+  const isLocal = isLocalEnvironment()
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 border-b border-zinc-200/70 bg-white/80 backdrop-blur-lg dark:border-zinc-800/80 dark:bg-zinc-900/80">
@@ -31,7 +33,9 @@ export const Header = ({ onOpenSettings, onToggleSidebar }: HeaderProps) => {
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-950 dark:text-zinc-50">CodeLoom</p>
             <p className="hidden text-xs text-zinc-500 dark:text-zinc-400 sm:block">
-              Weave source files into local LLM-ready prompts
+              {isLocal
+                ? 'Weave source files into local LLM-ready prompts'
+                : 'Assemble source files into LLM-ready prompts · Copy or download'}
             </p>
           </div>
         </div>
