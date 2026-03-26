@@ -1,10 +1,11 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, Plus, RefreshCw, Trash2, Wifi, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Toggle } from '@/components/ui/Toggle'
-import { normalizeAndValidateEndpointUrl } from '@/services/llmBridge'
+import { getModelInfo, listModelsDetailed, testConnection } from '@/services/llmBridge'
+import type { ModelInfo } from '@/services/llmBridge'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { LLMApiType, ThemeMode } from '@/types'
 
@@ -43,35 +44,92 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
   const addLLMEndpoint = useSettingsStore((state) => state.addLLMEndpoint)
   const removeLLMEndpoint = useSettingsStore((state) => state.removeLLMEndpoint)
   const setActiveLLMEndpoint = useSettingsStore((state) => state.setActiveLLMEndpoint)
+  const updateLLMEndpoint = useSettingsStore((state) => state.updateLLMEndpoint)
   const defaultFilters = useSettingsStore((state) => state.defaultFilters)
   const updateDefaultFilters = useSettingsStore((state) => state.updateDefaultFilters)
   const [formState, setFormState] = useState<EndpointFormState>(initialFormState)
-  const [endpointValidationError, setEndpointValidationError] = useState<string | null>(null)
+  const [testingId, setTestingId] = useState<string | null>(null)
+  const [connectionResults, setConnectionResults] = useState<Record<string, boolean>>({})
+  const [detectedModels, setDetectedModels] = useState<ModelInfo[]>([])
+  const [detectingModels, setDetectingModels] = useState(false)
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleDetectModels = async () => {
+    if (!formState.url.trim()) return
+    setDetectingModels(true)
+    try {
+      const models = await listModelsDetailed({
+        id: '', name: '', url: formState.url.trim(),
+        model: '', apiType: formState.apiType,
+      })
+      setDetectedModels(models)
+      if (models.length > 0 && !formState.model) {
+        setFormState((s) => ({ ...s, model: models[0].name }))
+      }
+    } catch {
+      setDetectedModels([])
+    } finally {
+      setDetectingModels(false)
+    }
+  }
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
     if (!formState.name.trim() || !formState.url.trim() || !formState.model.trim()) {
       return
     }
 
-    let validatedUrl: string
+    let contextLength: number | undefined
     try {
-      validatedUrl = normalizeAndValidateEndpointUrl(formState.url.trim())
-    } catch (error) {
-      setEndpointValidationError(error instanceof Error ? error.message : 'Invalid endpoint URL.')
-      return
+      const info = await getModelInfo(
+        { id: '', name: '', url: formState.url.trim(), model: formState.model.trim(), apiType: formState.apiType },
+        formState.model.trim(),
+      )
+      contextLength = info.contextLength
+    } catch {
+      // best-effort
     }
 
     addLLMEndpoint({
       name: formState.name.trim(),
-      url: validatedUrl,
+      url: formState.url.trim(),
       model: formState.model.trim(),
       apiType: formState.apiType,
       apiKey: formState.apiKey.trim() || undefined,
+      contextLength,
     })
     setFormState(initialFormState)
-    setEndpointValidationError(null)
+    setDetectedModels([])
+  }
+
+  const handleTestConnection = async (endpointId: string) => {
+    const endpoint = llmEndpoints.find((item) => item.id === endpointId)
+    if (!endpoint) {
+      return
+    }
+
+    setTestingId(endpointId)
+
+    try {
+      const result = await testConnection(endpoint)
+      setConnectionResults((state) => ({
+        ...state,
+        [endpointId]: result,
+      }))
+
+      if (result && !endpoint.contextLength) {
+        try {
+          const info = await getModelInfo(endpoint, endpoint.model)
+          if (info.contextLength) {
+            updateLLMEndpoint(endpoint.id, { contextLength: info.contextLength })
+          }
+        } catch {
+          // best-effort
+        }
+      }
+    } finally {
+      setTestingId(null)
+    }
   }
 
   return (
@@ -166,17 +224,18 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
         <div className="space-y-6">
           <section className="space-y-4">
             <div>
-               <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
-                 LLM endpoints
-               </h3>
-               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                 Manage endpoints used only when you explicitly click "Send to LLM."
-               </p>
-             </div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+                LLM endpoints
+              </h3>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Manage local or remote model endpoints used to send completed prompt bundles.
+              </p>
+            </div>
 
             <div className="space-y-3">
               {llmEndpoints.length > 0 ? (
                 llmEndpoints.map((endpoint) => {
+                  const connectionState = connectionResults[endpoint.id]
                   const isActive = endpoint.id === activeLLMEndpoint
 
                   return (
@@ -212,6 +271,17 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                             {isActive ? 'Selected' : 'Use'}
                           </Button>
                           <Button
+                            variant="ghost"
+                            size="sm"
+                            loading={testingId === endpoint.id}
+                            icon={<Wifi className="size-4" />}
+                            onClick={() => {
+                              void handleTestConnection(endpoint.id)
+                            }}
+                          >
+                            Test
+                          </Button>
+                          <Button
                             variant="danger"
                             size="sm"
                             icon={<Trash2 className="size-4" />}
@@ -221,6 +291,24 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                           </Button>
                         </div>
                       </div>
+
+                      {typeof connectionState === 'boolean' ? (
+                        <div className="mt-3 flex items-center gap-2 text-sm">
+                          {connectionState ? (
+                            <>
+                              <CheckCircle2 className="size-4 text-emerald-500" />
+                              <span className="text-emerald-700 dark:text-emerald-300">
+                                Connection succeeded.
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="size-4 text-rose-500" />
+                              <span className="text-rose-700 dark:text-rose-300">Connection failed.</span>
+                            </>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   )
                 })
@@ -238,7 +326,7 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
               <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Add endpoint</h3>
             </div>
 
-            <form className="grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
+            <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => { void handleSubmit(e) }}>
               <input
                 type="text"
                 value={formState.name}
@@ -246,26 +334,51 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                 placeholder="Name (e.g. My Ollama)"
                 className="input-field"
               />
-              <input
-                type="url"
-                value={formState.url}
-                onChange={(event) => {
-                  setFormState((state) => ({ ...state, url: event.target.value }))
-                  setEndpointValidationError(null)
-                }}
-                placeholder="URL"
-                className="input-field"
-              />
-              <p className="md:col-span-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Endpoints are restricted to localhost and private-network addresses to prevent accidental data egress.
-              </p>
-              <input
-                type="text"
-                value={formState.model}
-                onChange={(event) => setFormState((state) => ({ ...state, model: event.target.value }))}
-                placeholder="Model name"
-                className="input-field"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={formState.url}
+                  onChange={(event) => setFormState((state) => ({ ...state, url: event.target.value }))}
+                  placeholder="URL"
+                  className="input-field"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={detectingModels}
+                  icon={<RefreshCw className="size-3.5" />}
+                  onClick={() => { void handleDetectModels() }}
+                  aria-label="Detect available models"
+                />
+              </div>
+              {detectedModels.length > 0 ? (
+                <div className="md:col-span-2">
+                  <label className="block space-y-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    <span>Detected models — select one:</span>
+                    <select
+                      value={formState.model}
+                      onChange={(event) => setFormState((s) => ({ ...s, model: event.target.value }))}
+                      className="input-field text-sm"
+                    >
+                      <option value="" disabled>Choose a model…</option>
+                      {detectedModels.map((m) => (
+                        <option key={m.name} value={m.name}>
+                          {m.name}{m.parameterSize ? ` (${m.parameterSize})` : ''}{m.quantization ? ` [${m.quantization}]` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={formState.model}
+                  onChange={(event) => setFormState((state) => ({ ...state, model: event.target.value }))}
+                  placeholder="Model name"
+                  className="input-field"
+                />
+              )}
               <select
                 value={formState.apiType}
                 onChange={(event) => {
@@ -273,6 +386,7 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                     ...state,
                     apiType: event.target.value as LLMApiType,
                   }))
+                  setDetectedModels([])
                 }}
                 className="input-field"
               >
@@ -293,11 +407,6 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                   Add endpoint
                 </Button>
               </div>
-              {endpointValidationError ? (
-                <p className="md:col-span-2 text-xs text-rose-600 dark:text-rose-300">
-                  {endpointValidationError}
-                </p>
-              ) : null}
             </form>
           </section>
         </div>

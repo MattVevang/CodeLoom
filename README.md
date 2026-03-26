@@ -53,7 +53,7 @@ Then open `http://localhost:8080`.
 
 CodeLoom is designed as a 100% client-side application. File reading, filtering, prompt assembly, and token estimation happen in the browser, and no built-in server sends repository content elsewhere. Container deployment serves only static assets.
 
-The only outbound network requests in the app are initiated when you explicitly click **Send to LLM** in the output panel. Endpoint URLs are restricted to localhost and private-network addresses (for example `localhost`, `127.0.0.1`, `192.168.x.x`) to reduce accidental data egress to public internet endpoints.
+Network requests are only made from the browser directly to user-configured model endpoints (for example, when detecting models, testing a connection, or sending prompts/chats). CodeLoom does not upload repository or prompt data to any CodeLoom-managed server.
 
 ## Tech Stack
 
