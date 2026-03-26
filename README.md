@@ -79,6 +79,11 @@ See the [documentation hub](./docs/README.md) for architecture notes, API refere
 - **npm development server** for local iteration
 - **Docker** for a portable static deployment on port `8080`
 - **Static hosting** by serving the generated `dist/` directory with any standard web server
+- **GitHub Pages** via `.github/workflows/pages.yml` on push to `main`
+
+### GitHub Pages URL
+
+- `https://mattvevang.github.io/CodeLoom/`
 
 ## Contributing
 
