@@ -20,7 +20,7 @@ CodeLoom is a browser-based workspace for assembling source files, repository co
 
 ## Screenshot
 
-> Screenshot placeholder: replace this section with a current CodeLoom UI capture.
+![CodeLoom UI overview](./docs/images/codeloom-overview.png)
 
 ## Quick Start
 
