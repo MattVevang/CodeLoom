@@ -38,8 +38,8 @@ export const PromptEditor = () => {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row">
-        <div className="flex min-h-[8rem] flex-1 flex-col gap-2 p-4">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <div className="flex min-h-[8rem] flex-col gap-2 p-4 lg:flex-1">
           <textarea
             value={config.userPrompt}
             onChange={(event) => setUserPrompt(event.target.value)}
@@ -51,10 +51,10 @@ export const PromptEditor = () => {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-zinc-200/70 p-4 dark:border-zinc-800/80 lg:w-64 lg:border-t-0 lg:border-l xl:w-72">
+        <div className="flex shrink-0 flex-col border-t border-zinc-200/70 p-4 dark:border-zinc-800/80 lg:w-64 lg:border-t-0 lg:border-l xl:w-72">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Options</p>
 
-          <div className="space-y-2">
+          <div className="comfortable-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto lg:pr-1">
             <label className="flex items-center gap-2.5 rounded-md border border-zinc-200/80 px-2.5 py-1.5 text-sm dark:border-zinc-800">
               <input type="checkbox" checked={config.includeFileTree} onChange={(event) => setIncludeFileTree(event.target.checked)} className="size-3.5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 dark:border-zinc-700 dark:bg-zinc-950" />
               <span>Include file tree</span>
@@ -90,7 +90,7 @@ export const PromptEditor = () => {
             </label>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 shrink-0 pt-2">
             <Button
               variant="primary"
               size="md"

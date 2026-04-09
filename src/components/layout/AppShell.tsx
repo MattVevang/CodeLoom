@@ -19,11 +19,11 @@ export const AppShell = () => {
       <div className="flex h-[calc(100vh-4rem)] pt-16">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 md:p-6">
-          <div className="h-[45%] min-h-[16rem] shrink-0">
+        <main className="flex min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:p-6 lg:overflow-hidden">
+          <div className="min-h-[22rem] lg:h-[50%] lg:min-h-[16rem] lg:shrink-0 xl:h-[45%]">
             <PromptEditor />
           </div>
-          <div className="min-h-0 flex-1">
+          <div className="min-h-[18rem] flex-1">
             <OutputPanel />
           </div>
         </main>
